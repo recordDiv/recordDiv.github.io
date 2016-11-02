@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html itemscope itemtype="http://schema.org/WebPage">
+<head>
+<title>Audio + Canvas2D/HTML recording using RecordRTC!</title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<link rel="author" type="text/html" href="https://plus.google.com/+MuazKhan">
+<meta name="author" content="Muaz Khan">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<style>
+    body {overflow-x:hidden;background: rgb(233, 233, 233);}
+    #elementToShare {
+        background: rgb(233, 233, 233);
+        font-size: 2em;
+        /*height: 100%;
+        left: 0;
+        padding: 0 1em;*/
+        position: absolute;
+        top: 0;
+
+    }
+
+
+
+
+</style>
+
+    <div style="float: right">
+        <button id="start" contenteditable="false">Start Audio+Canvas Recording</button>
+        <button id="stop" disabled contenteditable="false">Stop</button>
+    </div>
+
+<div id="elementToShare" contenteditable style="width: 800px;height: 600px;border: solid;">
+
+    <canvas id="drawCanvas" width="800" height="600" style="background: #fff"></canvas>
+
+</div>
+
+
+
+
+<script src="https://cdn.webrtc-experiment.com/screenshot.js"> </script>
+<script src="https://cdn.webrtc-experiment.com/RecordRTC.js"> </script>
+<script src="script.js"> </script>
+
+<script>
+    var elementToShare = document.getElementById('elementToShare');
+    var canvas2d = document.createElement('canvas');
+    var context = canvas2d.getContext('2d');
+
+
+
+
+
+
+    canvas2d.width = elementToShare.clientWidth;
+    canvas2d.height = elementToShare.clientHeight;
+
+    canvas2d.style.top = 0;
+    canvas2d.style.left = 0;
+    canvas2d.style.zIndex = -1;
+    (document.body || document.documentElement).appendChild(canvas2d);
+
+    var isRecordingStarted = false;
+    var isStoppedRecording = false;
+
+    (function looper() {
+        if(!isRecordingStarted) {
+            return setTimeout(looper, 500);
+        }
+
+        html2canvas(elementToShare, {
+            grabMouse: true,
+            onrendered: function(canvas) {
+                context.clearRect(0, 0, canvas2d.width, canvas2d.height);
+                context.drawImage(canvas, 0, 0, canvas2d.width, canvas2d.height);
+
+                if(isStoppedRecording) {
+                    return;
+                }
+
+                setTimeout(looper, 1);
+            }
+        });
+    })();
+
+    var canvasRecorder = RecordRTC(canvas2d, {
+        type: 'canvas'
+    });
+
+    var recordAudio;
+
+    document.getElementById('start').onclick = function() {
+        this.disabled = true;
+        navigator.getUserMedia({ audio: true }, function(stream) {
+            var audio = document.createElement('audio');
+            audio.muted = true;
+            audio.volume = 0;
+            audio.src = URL.createObjectURL(stream);
+
+            recordAudio = RecordRTC(stream, {
+                type: 'audio'
+            });
+
+            isStoppedRecording = false;
+            isRecordingStarted = true;
+
+            canvasRecorder.startRecording();
+            recordAudio.startRecording();
+
+            document.getElementById('stop').disabled = false;
+        }, function(error) { log( JSON.stringify ( error ) ); });
+    };
+
+
+    document.getElementById('stop').onclick = function() {
+        this.disabled = true;
+
+        recordAudio.stopRecording(function() {
+            isStoppedRecording = true;
+            canvasRecorder.stopRecording(function() {
+                //convertStreams(canvasRecorder.getBlob(), recordAudio.getBlob());
+                //log('<a href="'+ workerPath +'" download="ffmpeg-asm.js">ffmpeg-asm.js</a> file download started. It is about 18MB in size; please be patient!');
+
+
+
+                var video = document.createElement('video');
+                video.src = URL.createObjectURL(canvasRecorder.getBlob());
+                video.setAttribute('style', 'height: 100%; position: absolute; top:0;');
+                document.body.appendChild(video);
+                //video.controls = true;
+
+
+                var audio = document.createElement('audio');
+                audio.src = URL.createObjectURL(recordAudio.getBlob());
+                audio.setAttribute('style', 'height: 100%; position: absolute; top:0;');
+                //document.body.appendChild(audio);
+                //audio.controls = true;
+
+                video.play();
+                audio.play();
+
+
+               /* console.log(URL.createObjectURL(canvasRecorder.getBlob()));
+                console.log(URL.createObjectURL(recordAudio.getBlob()));*/
+
+            });
+        });
+
+        document.getElementById('start').disabled = false;
+
+    };
+
+
+
+
+
+
+    function log(message) {
+        h2.innerHTML = message;
+        console.log(message);
+    }
+</script>
+
+</head>
+</html>
